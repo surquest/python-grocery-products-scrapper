@@ -5,13 +5,14 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 
-class TescoScraper:
+class Scraper:
     """
     A scraper for Tesco's GraphQL API.
     Provides methods to fetch taxonomy and product listings.
     """
 
     URL = "https://xapi.tesco.com/"
+    
     HEADERS = {
         "accept": "application/json",
         "accept-language": "en-GB",
