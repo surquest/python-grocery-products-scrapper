@@ -1,0 +1,37 @@
+query Taxonomy(
+  $storeId: ID
+  $includeInspirationEvents: Boolean
+  $includeChildren: Boolean = true
+  $deliveryType: DeliveryTypeEnum
+  $configs: [ConfigArgType]
+  $usePageType: Boolean = false
+) {
+  taxonomy(
+    storeId: $storeId
+    includeInspirationEvents: $includeInspirationEvents
+    deliveryType: $deliveryType
+    configs: $configs
+  ) {
+    id
+    name
+    label
+    source
+    pageType @include(if: $usePageType)
+    children @include(if: $includeChildren) {
+      name
+      label
+      source
+      pageType @include(if: $usePageType)
+      children {
+        id
+        label
+        name
+        source
+        pageType @include(if: $usePageType)
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
