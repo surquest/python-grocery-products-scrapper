@@ -6,30 +6,7 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from .handler import DataHandler
-
-
-class Facet(str, Enum):
-    MARKETPLACE = 'b;TWFya2V0cGxhY2U='
-    CLOTHING_ACCESSORIES = 'b;Q2xvdGhpbmclMjAmJTIwQWNjZXNzb3JpZXM='
-    SUMMER = 'b;U3VtbWVy'
-    BACK_TO_SCHOOL = 'b;QmFjayUyMFRvJTIwU2Nob29s'
-    FRESH_FOOD = 'b;RnJlc2glMjBGb29k'
-    BAKERY = 'b;QmFrZXJ5'
-    FROZEN_FOOD = 'b;RnJvemVuJTIwRm9vZA=='
-    TREATS_SNACKS = 'b;VHJlYXRzJTIwJiUyMFNuYWNrcw=='
-    FOOD_CUPBOARD = 'b;Rm9vZCUyMEN1cGJvYXJk'
-    DRINKS = 'b;RHJpbmtz'
-    BABY_TODDLER = 'b;QmFieSUyMCYlMjBUb2RkbGVy'
-    HEALTH_BEAUTY = 'b;SGVhbHRoJTIwJiUyMEJlYXV0eQ=='
-    PETS = 'b;UGV0cw=='
-    HOUSEHOLD = 'b;SG91c2Vob2xk'
-    HOME_ENTS = 'b;SG9tZSUyMCYlMjBFbnRz'
-    ELECTRONICS_GAMING = 'b;RWxlY3Ryb25pY3MlMjAmJTIwR2FtaW5n'
-    TOYS_GAMES = 'b;VG95cyUyMCYlMjBHYW1lcw=='
-    PARTIES_SEASONAL = 'b;UGFydGllcyUyMCYlMjBTZWFzb25hbA=='
-    KIOSK = 'b;S2lvc2s='
-    INSPIRATION_EVENTS = 'b;SW5zcGlyYXRpb24lMjAmJTIwRXZlbnRz'
-
+from .facets import FacetCZ, FacetUK
 
 class Scraper:
     """
@@ -38,30 +15,72 @@ class Scraper:
     """
 
     URL = "https://xapi.tesco.com/"
-    
+
     HEADERS = {
-        "accept": "application/json",
-        "accept-language": "en-GB",
-        "cache-control": "no-cache",
-        "content-type": "application/json",
-        "language": "en-GB",
+        "uk": {
+            "accept": "application/json",
+            "accept-language": "en-GB",
+            "language": "en-GB",
+            "region": "UK",
+            "cache-control": "no-cache",
+            "content-type": "application/json",
+        },
+        "cz": {
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Origin": "https://nakup.itesco.cz",
+            "accept": "application/json",
+            "accept-language": "cs-CZ",
+            "content-type": "application/json",
+            "language": "cs-CZ",
+            "region": "CZ",
+        },
+        "sk": {
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Origin": "https://potravinydomov.itesco.sk",
+            "accept": "application/json",
+            "accept-language": "sk-SK",
+            "content-type": "application/json",
+            "language": "sk-SK",
+            "region": "SK",
+        },
+        "hu": {
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Origin": "https://bevasarlas.tesco.hu",
+            "accept": "application/json",
+            "accept-language": "hu-HU",
+            "content-type": "application/json",
+            "language": "hu-HU",
+            "region": "HU",
+        }
     }
 
     def __init__(
         self,
         api_key: str = "TvOSZJHlEk0pjniDGQFAc9Q59WGAR4dA",
-        base_dir: Optional[Path] = None
+        region: str = "uk",
+        base_dir: Optional[Path] = None,
     ):
         self.base_dir = base_dir or Path(__file__).resolve().parent
         self.api_key = api_key
+        self.region = region
 
         # Merge base headers with API key
-        self.headers = {**self.HEADERS, "x-apikey": self.api_key}
+        self.headers = {
+            **self.HEADERS.get(self.region), 
+            "x-apikey": self.api_key
+        }
 
         # Preload GraphQL queries
         self.graphql = {
-            "products": self.load_graphql_query_from_file(self.base_dir / "graphql.products.gql"),
-            "taxonomy": self.load_graphql_query_from_file(self.base_dir / "graphql.taxonomy.gql")
+            "products": self.load_graphql_query_from_file(
+                self.base_dir / "graphql.products.gql"
+            ),
+            "taxonomy": self.load_graphql_query_from_file(
+                self.base_dir / "graphql.taxonomy.gql"
+            ),
         }
 
         # Default variables for API requests
@@ -70,28 +89,7 @@ class Scraper:
                 "includeChildren": True,
                 "usePageType": True,
                 "includeInspirationEvents": True,
-                "configs": []
-            },
-            "products": {
-                "page": 1,
-                "includeRestrictions": True,
-                "includeVariations": True,
-                # "showDepositReturnCharge": False,
-                "count": 100,
-                "facet": "b;RnJlc2glMjBGb29k",
-                # "configs": [
-                #     {
-                #         "featureKey": "dynamic_filter",
-                #         "params": [
-                #             {"name": "enable", "value": "true"}
-                #         ],
-                #     },
-                # ],
-                # "filterCriteria": [
-                #     {"name": "0", "values": ["groceries"]}
-                # ],
-                "appliedFacetArgs": [],
-                # "sortBy": "relevance",
+                "configs": [],
             }
         }
 
@@ -109,13 +107,15 @@ class Scraper:
         Internal helper to send POST requests to the Tesco API.
         """
         try:
-            response = requests.post(self.URL, headers=self.headers, json=payload, timeout=10)
+            response = requests.post(
+                self.URL, headers=self.headers, json=payload, timeout=10
+            )
             response.raise_for_status()
             response_data = response.json()
 
             if "errors" in response_data[0].keys():
-                
-                error = esponse_data[0].get('errors')[0].get('message')
+
+                error = esponse_data[0].get("errors")[0].get("message")
 
                 raise Exception(f"API request failed: {error}")
 
@@ -132,45 +132,49 @@ class Scraper:
         if variables:
             payload_variables.update(variables)
 
-        payload = [{
-            "operationName": "Taxonomy",
-            "variables": payload_variables,
-            "extensions": {"mfeName": "mfe-header"},
-            "query": self.graphql["taxonomy"],
-        }]
+        payload = [
+            {
+                "operationName": "Taxonomy",
+                "variables": payload_variables,
+                "extensions": {"mfeName": "mfe-header"},
+                "query": self.graphql["taxonomy"],
+            }
+        ]
         return self._post_request(payload)
 
-    def fetch_products(self, facet:str, page: int = 1, size: int = 999) -> Any:
+    def fetch_products(self, facet: str, page: int = 1, size: int = 999) -> Any:
         """
         Fetch product listings from Tesco API.
         """
 
         variables = {
-                "page": page,
-                "includeRestrictions": True,
-                "includeVariations": True,
-                "count": size,
-                "facet": facet.value,
-                "appliedFacetArgs": [],
-            }
+            "page": page,
+            "includeRestrictions": True,
+            "includeVariations": True,
+            "count": size,
+            "facet": facet.value,
+            "appliedFacetArgs": [],
+        }
 
-        payload = [{
-            "operationName": "GetCategoryProducts",
-            "variables": variables,
-            "extensions": {"mfeName": "mfe-plp"},
-            "query": self.graphql["products"],
-        }]
+        payload = [
+            {
+                "operationName": "GetCategoryProducts",
+                "variables": variables,
+                "extensions": {"mfeName": "mfe-plp"},
+                "query": self.graphql["products"],
+            }
+        ]
 
         return self._post_request(payload)
 
-    def fetch_facet_products(self, facet: Facet, size: int = 500, page: int = 1):
+    def fetch_facet_products(self, facet: FacetUK | FacetCZ, size: int = 500, page: int = 1):
         """
         Fetch all products from all pages of the category
 
         Args:
             facet (Facet): Facet to fetch products for
             size (int): Number of products to fetch per page
-        
+
         Returns:
             dict: Dictionary containing all products from all pages
         """
@@ -182,27 +186,27 @@ class Scraper:
             print(f"-> Fetching page: {page}")
 
             response_data = self.retry(
-                self.fetch_products,
-                facet=facet,
-                page=page,
-                size=size
+                self.fetch_products, facet=facet, page=page, size=size
             )
 
             products = DataHandler.extract_products(response_data, products)
             total_count = DataHandler.extract_total_count_of_products(response_data)
             current_count = len(products.keys())
 
-            print(f"Current Count: {current_count} of {total_count} (progress: {current_count/total_count})") 
-            if page*size >= total_count:
+            print(
+                f"Current Count: {current_count} of {total_count} (progress: {current_count/total_count})"
+            )
+            if page * size >= total_count:
                 fetch_next = False
 
             page += 1
 
         return products
 
-
     @staticmethod
-    def retry(func, *args, retries=5, delay=1, backoff=3, exceptions=(Exception,), **kwargs):
+    def retry(
+        func, *args, retries=5, delay=1, backoff=3, exceptions=(Exception,), **kwargs
+    ):
         """
         Generic retry function with exponentially increasing sleep time between tries.
 

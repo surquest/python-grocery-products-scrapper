@@ -81,6 +81,11 @@ class DataHandler:
                     "brand": node.get('brandName'),
                     "desc": node.get('shortDescription'),
                     "imageUrl": node.get('defaultImageUrl'),
+                    "price": {
+                        "price": price,
+                        "unitPrice": unit_price,
+                        "unitOfMeasure": unit_of_measure
+                    },
                     "superDepartment": {
                         "id": node.get('superDepartmentId'),
                         "name": node.get('superDepartmentName')
@@ -102,14 +107,6 @@ class DataHandler:
                         "tpnb": node.get('tpnb'),
                         "tpnc": node.get('tpnc'),
                         "gtin": node.get('gtin')
-                    },
-                    "price": {
-                        "price": price,
-                        "unitPrice": unit_price,
-                        "unitOfMeasure": unit_of_measure
-                    },
-                    "promotion": {
-                        "unitOfMeasure": node.get('unitOfMeasure')
                     }
                 }
 
