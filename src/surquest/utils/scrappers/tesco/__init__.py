@@ -1,2 +1,2 @@
 from .handler import DataHandler
-from .scrapper import Scraper
+from .scrapper import Scraper, Facet
