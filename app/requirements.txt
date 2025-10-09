@@ -1,0 +1,6 @@
+fastapi==0.118.2
+uvicorn==0.37.0
+setuptools==80.9.0
+
+surquest-utils-scrappers-grocery==0.0.1rc2
+surquest-fastapi-utils==0.2.6

@@ -26,16 +26,10 @@
     previews = {
       enable = true;
       previews = {
-        # web = {
-        #   # Example: run "npm run dev" with PORT set to IDX's defined port for previews,
-        #   # and show it in IDX's web preview panel
-        #   command = ["npm" "run" "dev"];
-        #   manager = "web";
-        #   env = {
-        #     # Environment variables to set for your server
-        #     PORT = "$PORT";
-        #   };
-        # };
+        web = {
+          command = ["uvicorn" "app.main:app"];
+          manager = "web";
+        };
       };
     };
 
@@ -53,6 +47,7 @@
           source .venv/bin/activate
           pip install -r src/surquest/utils/requirements.txt
           pip install -r tests/surquest/utils/requirements.txt
+          pip install -r app/requirements.txt
         '';
       };
     };
