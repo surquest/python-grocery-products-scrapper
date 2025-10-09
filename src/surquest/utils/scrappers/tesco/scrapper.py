@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List
 from .handler import DataHandler
 from .facets import FacetCZ, FacetUK
 
+
 class Scraper:
     """
     A scraper for Tesco's GraphQL API.
@@ -54,7 +55,7 @@ class Scraper:
             "content-type": "application/json",
             "language": "hu-HU",
             "region": "HU",
-        }
+        },
     }
 
     def __init__(
@@ -68,15 +69,15 @@ class Scraper:
         self.region = region
 
         # Merge base headers with API key
-        self.headers = {
-            **self.HEADERS.get(self.region), 
-            "x-apikey": self.api_key
-        }
+        self.headers = {**self.HEADERS.get(self.region), "x-apikey": self.api_key}
 
         # Preload GraphQL queries
         self.graphql = {
             "products": self.load_graphql_query_from_file(
                 self.base_dir / "graphql.products.gql"
+            ),
+            "product": self.load_graphql_query_from_file(
+                self.base_dir / "graphql.product.gql"
             ),
             "taxonomy": self.load_graphql_query_from_file(
                 self.base_dir / "graphql.taxonomy.gql"
@@ -167,7 +168,37 @@ class Scraper:
 
         return self._post_request(payload)
 
-    def fetch_facet_products(self, facet: FacetUK | FacetCZ, size: int = 500, page: int = 1):
+    def fet_product(self, code: str) -> Any:
+        """
+        Fetch product details from Tesco API.
+        """
+
+        variables = {
+            "includeVariations": True,
+            "includeFulfilment": False,
+            "markRecentlyViewed": False,
+            "tpnc": f"{code}",
+            "skipReviews": False,
+            "offset": 0,
+            "count": 10,
+            "sellersType": "ALL",
+            "sellerTypeForVariations": "TOP",
+        }
+
+        payload = [
+            {
+                "operationName": "GetProduct",
+                "variables": variables,
+                "extensions": {"mfeName": "mfe-plp"},
+                "query": self.graphql["product"],
+            }
+        ]
+
+        return self._post_request(payload)
+
+    def fetch_facet_products(
+        self, facet: FacetUK | FacetCZ, size: int = 500, page: int = 1
+    ):
         """
         Fetch all products from all pages of the category
 

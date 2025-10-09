@@ -48,6 +48,25 @@ class DataHandler:
             return response_data[0]['data']['category']['pageInformation']['totalCount']
         except (KeyError, IndexError, AttributeError) as e:
             raise ValueError(f"Invalid response structure: {e}")
+
+    @staticmethod
+    def extract_product(response_data: list) -> dict:
+        """
+        Extract product information from response_data.
+
+        Args:
+            response_data (list): API response data containing product details.
+
+        Returns:
+            dict: Dictionary containing product information.
+        """
+
+        try:
+            node = response_data[0]['data']['product']
+        except (KeyError, IndexError, AttributeError) as e:
+            raise ValueError(f"Invalid response structure: {e}")
+
+        return node
     
     @staticmethod
     def extract_products(response_data: list, products: dict=dict()) -> dict:

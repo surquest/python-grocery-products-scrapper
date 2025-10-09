@@ -383,17 +383,6 @@ fragment facet on FacetInterface {
     }
     __typename
   }
-  ... on FacetRangeType {
-    rangeValues: values {
-      appliedMax
-      appliedMin
-      stepper
-      min
-      max
-      __typename
-    }
-    __typename
-  }
   ... on FacetBooleanType {
     booleanValues: values {
       count
