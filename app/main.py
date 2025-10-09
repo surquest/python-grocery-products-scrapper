@@ -13,7 +13,7 @@ PATH_PREFIX = ""
 app = FastAPI()
 
 # custom routes to documentation and favicon
-app.add_api_route(path=F"{PATH_PREFIX}/", endpoint=Route.get_documentation, include_in_schema=False)
+# app.add_api_route(path=F"{PATH_PREFIX}/", endpoint=Route.get_documentation, include_in_schema=False)
 app.add_api_route(path=PATH_PREFIX, endpoint=Route.get_favicon, include_in_schema=False)
 
 @app.get("/")
