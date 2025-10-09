@@ -168,7 +168,7 @@ class Scraper:
 
         return self._post_request(payload)
 
-    def fet_product(self, code: str) -> Any:
+    def fetch_product(self, code: str) -> Any:
         """
         Fetch product details from Tesco API.
         """
