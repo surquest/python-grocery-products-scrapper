@@ -14,5 +14,6 @@
             "dest": "app/main.py"
         }
     ],
-    "installCommand": "pip install -r ./app/requirements.txt"
+    "installCommand": "pip install -r ./app/requirements.txt",
+    "includeFiles": "app/**/*"
 }
