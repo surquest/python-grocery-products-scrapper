@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "surquest-utils-scrappers-grocery"
+version = "0.0.1rc1"
+description = "A collection of web scrapers designed to extract grocery product data from grocery retailers"
+authors = [
+    {name= "Michal Švarc", email= "michal.svarc@surquest.com"}
+]
+readme = "README.md"
+dependencies = [
+    "requests>=2.32.4,<3.0"
+]
+
+
+[project.optional-dependencies]
+test = [
+    "pytest==8.4.1",
+    "pytest-cov==6.2.1",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/surquest/python-grocery-products-scrapper"
+"Bug Tracker" = "https://github.com/surquest/python-grocery-products-scrapper/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/surquest"]
