@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "surquest-utils-scrappers-grocery"
-version = "0.0.1rc1"
+version = "0.0.1rc2"
 description = "A collection of web scrapers designed to extract grocery product data from grocery retailers"
 authors = [
     {name= "Michal Švarc", email= "michal.svarc@surquest.com"}
