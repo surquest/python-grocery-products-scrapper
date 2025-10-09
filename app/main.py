@@ -16,17 +16,12 @@ app = FastAPI()
 app.add_api_route(path=F"{PATH_PREFIX}/", endpoint=Route.get_documentation, include_in_schema=False)
 app.add_api_route(path=PATH_PREFIX, endpoint=Route.get_favicon, include_in_schema=False)
 
-@app.get("/ui")
+@app.get("/")
 def get_ui() -> str:
     
     with open("./app/static/ui.html", "r") as f:
         return HTMLResponse(content=f.read())
 
-@app.get("/static/styles.css")
-def get_ui() -> str:
-    
-    with open("./app/static/styles.css", "r") as f:
-        return HTMLResponse(content=f.read())
 
 @app.post("/products:scrape")
 def count_strings(items: List[str]) -> dict:
