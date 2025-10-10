@@ -149,13 +149,6 @@ md-circular-progress {
     background-color: var(--md-sys-color-surface-container-highest);
 }
 
-md-elevation {
-    --md-elevation-level: 1;
-    transition: --md-elevation-level 0.2s ease-in-out;
-}
-.product-card:hover md-elevation {
-    --md-elevation-level: 3;
-}
 
 .card-content {
     padding: 16px;
