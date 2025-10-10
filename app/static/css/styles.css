@@ -208,3 +208,11 @@ md-elevation {
     padding-top: 12px;
     margin-top: 12px;
 }
+
+md-chip-set {
+    display: inline
+}
+
+md-assist-chip {
+    margin-right: 5px;
+}

@@ -27,7 +27,7 @@
         }
 
         function setStatus(message, type = 'info') {
-            statusEl.textContent = message;
+            statusEl.innerHTML = message;
             statusEl.className = `status-${type}`;
             statusEl.style.display = 'block';
         }
@@ -79,14 +79,28 @@
             return card;
         }
 
-        function renderResults(products) {
+        function renderResults(products, errors=[]) {
             resultsContainer.innerHTML = '';
             if (!products || products.length === 0) {
-                setStatus('No products found matching the input criteria.', 'info');
+                setStatus('No products found matching the input criteria.', 'error');
                 return;
             }
+            if (errors.length > 0) {
+                // Define chip-set for first 3 errors
+                const chipSet = document.createElement('md-chip-set');
+                // Add each error as an assist chip
+                errors.slice(0, 3).forEach(error => {
+                    const chip = document.createElement('md-assist-chip');
+                    chip.setAttribute('label', error);
+                    chipSet.appendChild(chip);
+                });
+
+                setStatus(`<p>These ${errors.length} products was not found: ${chipSet.outerHTML} and probably 
+                more ... </p>`, 'warning');
+            } else {
+                setStatus(`Successfully loaded ${products.length} product(s).`, 'success');
+            }
             products.forEach(product => resultsContainer.appendChild(createCard(product)));
-            setStatus(`Successfully loaded ${products.length} product(s).`, 'success');
         }
 
         // Main Event Handlers
@@ -138,7 +152,7 @@
                 }
 
                 productCache[inputKey] = data.products;
-                renderResults(data.products);
+                renderResults(data.products, data.errors);
 
             } catch (error) {
                 console.error('Scrape Operation Failed:', error);
