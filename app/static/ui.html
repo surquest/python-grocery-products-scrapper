@@ -519,7 +519,7 @@
                 }
 
                 // 3. Render and Cache
-                productCache[inputKey] = data;
+                productCache[inputKey] = data["products"];
                 renderResults(data["products"]);
 
             } catch (error) {
