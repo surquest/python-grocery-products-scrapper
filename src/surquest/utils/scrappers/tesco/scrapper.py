@@ -158,7 +158,7 @@ class Scraper:
             "includeRestrictions": True,
             "includeVariations": True,
             "count": size,
-            "facet": facet.value,
+            "facet": facet_value,
             "appliedFacetArgs": [],
         }
 
