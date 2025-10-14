@@ -148,6 +148,11 @@ class Scraper:
         Fetch product listings from Tesco API.
         """
 
+        try:
+            facet_value = facet.value
+        except:
+            facet_value = facet
+
         variables = {
             "page": page,
             "includeRestrictions": True,
