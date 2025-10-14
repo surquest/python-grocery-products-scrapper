@@ -1,211 +1,226 @@
-from enum import Enum
+# Import necessary libraries
 import time
 import requests
-import json
-import os
-from pathlib import Path
-from typing import Optional, Dict, Any, List
-from .handler import DataHandler
+import re
 import logging
+from typing import Optional, Any, Dict
 
 
 class Scraper:
     """
-    A scraper for Ocado API v6 products.
+    Scraper for Ocado API v6 products.
     Provides methods to fetch taxonomy and product listings.
     """
 
-    URL = "https://www.ocado.com/api/v6/products"
+    # Define constants for the scraper
+    BASE_URL = "https://www.ocado.com"
+    ATTRIBUTES = ("productId", "retailerProductId", "name", "price", "unitPrice", "brand", "size", "categoryPath", "alcohol")
+    ENDPOINTS = {
+        "base": BASE_URL,
+        "products": {"method": "GET", "url": f"{BASE_URL}/api/v6/products"},
+        "product_details": {
+            "method": "PUT",
+            "url": f"{BASE_URL}/api/webproductpagews/v6/products",
+        },
+    }
+    BATCH_SIZE = 100 # Max 100 product IDs per request
 
-    ENDPOINTS = [
-        "GET: https://www.ocado.com/api/webproductpagews//v6/product-pages?maxPageSize=500",
-        "GET: https://www.ocado.com/api/v6/products?category=513db630-94bc-4ed0-9b62-fe038f108bb7&pageToken=2d294789-9f41-4e01-b6ef-b097d5875d66",
-        "PUT: https://www.ocado.com/api/webproductpagews/v6/products"
-    ]
-
-
-    def __init__(self, visitor_id, endpoint=None, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
         """
-        Initializes the Scraper.
+        Initialize the Scraper.
         Args:
-            endpoint (str, optional): The API endpoint to use. 
-                                     Defaults to the class-level URL.
-            logger (logging.Logger, optional): The logger to use for logging messages.
-                                               If not provided, a default logger will be used.
+            logger (logging.Logger, optional): Custom logger.
+                                               Defaults to module logger.
         """
-
-        self.visitor_id = visitor_id
-        if endpoint is not None:
-            self.URL = endpoint
-        
         self.logger = logger or logging.getLogger(__name__)
+        # Fetch tokens on initialization
+        self.tokens = self._get_tokens(self.ENDPOINTS["base"])
 
-    def _get_request(self, url: str, query_params: Optional[Dict[str, Any]] = None) -> Any:
+
+    def fetch_categories(self) -> list:
         """
-        Internal helper to send GET requests to the Ocado API.
-        Args:
-            url (str): The URL to send the request to.
-            query_params (Optional[Dict[str, Any]], optional): 
-                A dictionary of query parameters to include in the request. 
-                Defaults to None.
+        Fetch all categories from the Ocado API.
         Returns:
-            Any: The JSON response from the API.
-        Raises:
-            Exception: If the API request fails.
+            list: A list of category objects from the API.
         """
-
-        try:
-            self.logger.debug(f"Requesting to {url} with {query_params}")
-            cookies = {'VISITORID': self.visitor_id}
-            response = requests.get(
-                url, 
-                timeout=10, 
-                params=query_params, 
-                cookies=cookies
-                )
-            print(f"API response status: {response.status_code}")
-            response.raise_for_status()
-            self.logger.debug(f"Request to {url} succeed")
-            return response.json()
-
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API request failed: {e}")
-            raise Exception(f"API request failed: {e}") from e
-
-    @classmethod
-    def get_visitor_id(cls):
-        """
-        Returns value of visitor ID Cookies
-        Returns:
-            str: The visitor ID.
-        """
-
-        response = requests.get(
-            url = cls.URL
+        # Make a request to the products endpoint
+        response = requests.request(
+            method=self.ENDPOINTS["products"]["method"],
+            url=self.ENDPOINTS["products"]["url"],
+            headers=self._get_headers(),
+            cookies=self._get_cookies(),
         )
-        return response.cookies.get("VISITORID")
-
-
-    def fetch_taxonomy(self):
+        # Raise an exception for bad status codes
+        response.raise_for_status()
+        # Return the categories from the JSON response
+        return response.json().get("result", {}).get("categories", [])
+    
+    def get_products(self, category_id=None) -> tuple:
         """
-        Fetches the taxonomy from the Ocado API.
-        Returns:
-            list: A list of categories from the API response.
-        """
-        self.logger.info(f"Fetching taxonomy from {self.URL}")
-        response = self._get_request(
-            url = self.URL
-        )
-
-        return response.get("result").get("categories")
-
-    def fetch_category_products(self, category_id):
-        """
-        Fetches all products for a given category ID.
-        Handles pagination to retrieve all products.
+        Public method to fetch all products for a given category, handling pagination.
         Args:
-            category_id (str): The ID of the category to fetch products for.
+            category_id (str, optional): The category ID to filter products. Defaults to None.
+
         Returns:
-            list: A list of all products in the specified category.
+            tuple: (list of product ids, product details)
         """
 
-        self.logger.info(f"Fetching products for category '{category_id}'")
-        products = list()
-        iteration = 0
-        ids = set([])
-        has_next_page = True
+        # Initialize lists and variables
+        all_product_ids = list()
+        all_product_details = dict()
         next_page_token = None
+        i = 0
+        # Loop until there are no more pages
+        while True:
 
-        while has_next_page:
-            print(f"Iteration: {iteration}")
-            self.logger.info(f"Fetching page with token: {next_page_token}")
-            loop_products, next_page_token, loop_ids = self._fetch_products(
+            # Retry fetching products in case of failures
+            product_ids, product_details, next_page_token = self.retry(
+                self._get_products,
                 category_id=category_id,
-                next_page_token=next_page_token
-                )
+                next_page_token=next_page_token,
+                retries=5,
+                delay=1,
+                backoff=2,
+                exceptions=(requests.RequestException,),
+            )
+
+            # Extend the list of all product IDs
+            all_product_ids.extend(product_ids)
+
+            # Add product details to the dictionary
+            for key, value in product_details.items():
+
+                all_product_details[key] = {x: value.get(x) for x in self.ATTRIBUTES if x in value}
+
+            # Log the progress
+            self.logger.info(f"Fetched {len(set(product_ids))} products, total so far: {len(set(all_product_ids))}, next page token: {next_page_token}")
             
-            if len(loop_products) == 0:
-                has_next_page = False
+            # Break the loop if there is no next page token
+            if not next_page_token:
                 break
 
-            products.extend(loop_products)
-            ids.union(loop_ids)
-            print(f" - next page token: {next_page_token}")
-            print(f" - count of loop products: {len(loop_ids)} - {loop_ids}")
-            print(f" - total count of products: {len(products)}")
-            print(ids)
-            
-            if next_page_token is None:
-                has_next_page = False
-            
-            iteration += 1
-            time.sleep(1)
+            i += 1
+
+        return all_product_ids, all_product_details
+    
+    def get_product_details(self, product_ids: list) -> dict:
+        """
+        Public method to fetch detailed product information for a list of product IDs.
+        Args:
+            product_ids (list): List of product IDs to fetch details for.
+
+        Returns:
+            dict: Product details keyed by product ID.
+        """
+
+        # Retry fetching product details in case of failures
+        return self.retry(
+            self._get_product_details,
+            product_ids=product_ids,
+            retries=5,
+            delay=1,
+            backoff=2,
+            exceptions=(requests.RequestException,),
+        )
+    
+    def _get_product_details(self, product_ids: list) -> dict:
+        """
+        Fetch detailed product information for a list of product IDs.
+        Args:
+            product_ids (list): List of product IDs to fetch details for.
+        Returns:
+            dict: Product details keyed by product ID.
+        """
         
-        self.logger.info(f"Found {len(products)} products for category '{category_id}'")
+        products = dict()
+        product_ids = list(product_ids)  # Ensure uniqueness
+        if not product_ids:
+            return {}
+
+        # Prepare batches with max 100 product IDs each and loop through them
+        payloads = [product_ids[i:i + self.BATCH_SIZE] for i in range(0, len(product_ids), self.BATCH_SIZE)]
+
+        self.logger.info(f"Fetching details for {len(product_ids)} products in {len(payloads)} batches.")
+
+        for i, payload in enumerate(payloads):
+
+            self.logger.info(f"Fetching details for batch {i + 1} of {len(payloads)}.")
+
+            # Make a request to the product details endpoint
+            response = requests.request(
+                method=self.ENDPOINTS["product_details"]["method"],
+                url=self.ENDPOINTS["product_details"]["url"],
+                headers=self._get_headers(),
+                cookies=self._get_cookies(),
+                json=payload,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            # Log a warning if the number of requested and received products do not match
+            if len(payload) != len(data.get("products", [])):
+                self.logger.warning(f"Requested {len(payload)} products, but received {len(data.get('products', []))}")
+
+            # Extract and store product details
+            for product in data.get("products", []):
+                products[product.get("productId")] = {x: product.get(x) for x in self.ATTRIBUTES if x in product}
+
         return products
 
-    def _fetch_products(self, category_id=None, next_page_token=None):
+    def _get_products(self, category_id=None, next_page_token=None) -> tuple:
         """
-        Fetches a single page of products from the Ocado API.
+        Fetch products for a given category, handling pagination.
         Args:
-            category_id (str, optional): The ID of the category to fetch. 
-                                         Defaults to None.
-            next_page_token (str, optional): The token for the next page 
-                                             of results. Defaults to None.
+            category_id (str, optional): The category ID to filter products. Defaults to None.
+            next_page_token (str, optional): Token for the next page. Defaults to None.
         Returns:
-            tuple: A tuple containing:
-                - A list of products from the API response.
-                - The token for the next page of results, 
-                  or None if there are no more pages.
+            tuple: (list of product ids, product details, next page token)
         """
 
-        query_params = dict()
-
+        params = dict()
         if category_id:
-            query_params["category"] = category_id
-        
+            params["category"] = category_id
         if next_page_token:
-            query_params["pageToken"] = next_page_token
+            params["pageToken"] = next_page_token
 
-        response = self._get_request(
-            url=self.URL,
-            query_params=query_params
+        # Make a request to the products endpoint
+        response = requests.request(
+            method=self.ENDPOINTS["products"]["method"],
+            url=self.ENDPOINTS["products"]["url"],
+            headers=self._get_headers(),
+            cookies=self._get_cookies(),
+            params=params,
         )
+        response.raise_for_status()
 
-        products = list()
-        ids = set()
-        
-        for key, value in response.get("entities").get("product").items():
-            products.append(value)
-            ids.add(key)
-        
-        self.logger.info(f"Found {len(products)} products")
+        data = response.json()
+        product_ids = list()
+        product_details = data.get("entities", {}).get("product", {})
 
-        next_page_token = response.get("result").get("nextPageToken")
-        return products, next_page_token, ids
-        
+        # Extract product IDs from the response
+        for group in data.get("result", {}).get("productGroups", []):
+
+            products = group.get("products", [])
+
+            product_ids.extend(list(set(products)))
+            
+        next_page_token = data.get("result", {}).get("nextPageToken", None)
+
+        return product_ids, product_details, next_page_token
 
     @staticmethod
     def retry(
-        func, *args, retries=5, delay=1, backoff=3, exceptions=(Exception,), **kwargs
-    ):
+        func,
+        *args,
+        retries: int = 5,
+        delay: float = 1,
+        backoff: float = 3,
+        exceptions: tuple = (Exception,),
+        **kwargs,
+    ) -> Any:
         """
-        Generic retry function with exponentially increasing sleep time between tries.
-
-        Args:
-            func (callable): The function to retry.
-            *args: Positional arguments for func.
-            retries (int): Number of retry attempts before failing.
-            delay (float): Initial delay between retries in seconds.
-            backoff (float): Factor by which the delay increases after each retry.
-            exceptions (tuple): Exception classes to catch and retry on.
-            **kwargs: Keyword arguments for func.
-
-        Returns:
-            Any: The return value of the function, if successful.
-
-        Raises:
-            Exception: The last exception if all retries fail.
+        Retry wrapper with exponential backoff.
         """
         attempt = 0
         current_delay = delay
@@ -215,9 +230,59 @@ class Scraper:
             try:
                 return func(*args, **kwargs)
             except exceptions as e:
-                logger.error(e)
+                # Log the error and increment the attempt counter
+                logger.error(f"Attempt {attempt + 1} failed: {e}")
                 attempt += 1
                 if attempt > retries:
                     raise
+                # Wait before the next retry
                 time.sleep(current_delay)
                 current_delay *= backoff
+
+    @classmethod
+    def _get_tokens(cls, url: str, timeout: float = 10.0) -> Dict[str, Optional[str]]:
+        """
+        Perform GET request to retrieve session cookies and CSRF token.
+        Returns:
+            dict: { "global_sid": str, "visitor_id": str, "csrf_token": str }
+        """
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; python-requests)",
+            "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
+        }
+
+        with requests.Session() as session:
+            # Make a GET request to the base URL
+            response = session.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+
+            # Get session cookies
+            global_sid = session.cookies.get("global_sid")
+            visitor_id = session.cookies.get("VISITORID")
+
+            # Extract CSRF token from HTML/JSON snippet in the response text
+            match = re.search(
+                r'"csrf"\\s*:\\s*\{\\s*"token"\\s*:\\s*"([^"]+)"', response.text
+            )
+            csrf_token = match.group(1) if match else None
+
+            return {
+                "global_sid": global_sid,
+                "visitor_id": visitor_id,
+                "csrf_token": csrf_token,
+            }
+
+    def _get_cookies(self) -> Dict[str, str]:
+        """Return cookie dictionary for requests."""
+        return {
+            "global_sid": self.tokens.get("global_sid"),
+            "VISITORID": self.tokens.get("visitor_id"),
+        }
+
+    def _get_headers(self) -> Dict[str, str]:
+        """Return header dictionary for requests."""
+        return {
+            "User-Agent": "Mozilla/5.0 (compatible; python-requests)",
+            "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
+            "X-CSRF-TOKEN": self.tokens.get("csrf_token"),
+        }
