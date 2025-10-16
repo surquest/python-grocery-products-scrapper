@@ -261,9 +261,8 @@ class Scraper:
             visitor_id = session.cookies.get("VISITORID")
 
             # Extract CSRF token from HTML/JSON snippet in the response text
-            match = re.search(
-                r'"csrf"\\s*:\\s*\{\\s*"token"\\s*:\\s*"([^"]+)"', response.text
-            )
+            match = re.search(r'"csrf"\s*:\s*\{\s*"token"\s*:\s*"([^"]+)"', response.text)
+
             csrf_token = match.group(1) if match else None
 
             return {
