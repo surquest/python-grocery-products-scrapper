@@ -2,11 +2,6 @@
 
 A collection of web scrapers designed to extract grocery product data from major UK retailers.
 
-
-Here’s a **cleaned-up and README-friendly version** of your example — formatted clearly, documented, and simplified for readability:
-
----
-
 # 🧩 Example: Scrape Ocado Product Data
 
 ```python
