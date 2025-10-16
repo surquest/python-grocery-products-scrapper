@@ -116,7 +116,7 @@ class Scraper:
 
             if "errors" in response_data[0].keys():
 
-                error = esponse_data[0].get("errors")[0].get("message")
+                error = response_data[0].get("errors")[0].get("message")
 
                 raise Exception(f"API request failed: {error}")
 
@@ -202,7 +202,7 @@ class Scraper:
         return self._post_request(payload)
 
     def fetch_facet_products(
-        self, facet: FacetUK | FacetCZ, size: int = 500, page: int = 1
+        self, facet, size: int = 500, page: int = 1
     ):
         """
         Fetch all products from all pages of the category
